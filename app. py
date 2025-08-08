@@ -1,0 +1,48 @@
+# app.py
+import os
+import threading
+from fastapi import FastAPI
+from telegram import Update
+from telegram.ext import Application, CommandHandler, ContextTypes
+
+BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")  # put token in Render env var later
+
+app = FastAPI(title="CKG Agni Mode")
+
+# ----- Telegram bot handlers -----
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "CKG Agni Mode 🔥 online!\n\nCommands:\n/rocket - demo intraday scan\n/help - how to connect market feed"
+    )
+
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Feed not connected yet. We’ll plug a broker/market API next.\n"
+        "This is the bot core running on Render."
+    )
+
+async def rocket(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Placeholder logic – we’ll replace with real scanner after API keys
+    await update.message.reply_text(
+        "🚀 Demo signal: Watchlist sample only (no live feed yet).\n"
+        "We'll wire Dhan/Upstox/Zerodha API for realtime next."
+    )
+
+# Build Telegram application
+tg_app = Application.builder().token(BOT_TOKEN).build()
+tg_app.add_handler(CommandHandler("start", start))
+tg_app.add_handler(CommandHandler("help", help_cmd))
+tg_app.add_handler(CommandHandler("rocket", rocket))
+
+# Run polling in a background thread so FastAPI can serve HTTP for Render
+def _run_bot():
+    tg_app.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
+
+@app.on_event("startup")
+def _startup():
+    if BOT_TOKEN:
+        threading.Thread(target=_run_bot, daemon=True).start()
+
+@app.get("/")
+def root():
+    return {"ok": True, "app": "CKG Agni Mode", "telegram": bool(BOT_TOKEN)}
